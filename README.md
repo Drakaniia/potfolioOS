@@ -1,35 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Portfolio OS
+
+A Mac-inspired portfolio operating system built with Next.js and modern web technologies.
+
+## Overview
+
+Portfolio OS reimagines the traditional portfolio website as an interactive desktop experience, drawing inspiration from macOS design principles. This project showcases creative development skills through an immersive, desktop-like interface.
+
+## Features
+
+- **Mac-inspired UI**: Authentic macOS design patterns and interactions
+- **Desktop Environment**: Window management, dock, and system tray
+- **Interactive Portfolio**: Projects and experience presented as desktop applications
+- **Modern Stack**: Built with Next.js, TypeScript, and Tailwind CSS
+- **Responsive Design**: Optimized for both desktop and mobile experiences
 
 ## Getting Started
 
 First, run the development server:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
 bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+You can start editing the page by modifying `src/app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Tech Stack
 
-## Learn More
+- **Framework**: Next.js 14
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Package Manager**: Bun
+- **Icons**: Lucide React
+- **Fonts**: System fonts with macOS-inspired typography
 
-To learn more about Next.js, take a look at the following resources:
+## Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+├── app/                 # Next.js app router
+├── components/          # Reusable UI components
+├── desktop/            # Desktop environment components
+├── lib/                # Utility functions and configurations
+└── styles/             # Global styles and design tokens
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Design System
 
-## Deploy on Vercel
+The project follows a comprehensive design system inspired by macOS:
+
+- **Color Palette**: System colors matching macOS themes
+- **Typography**: SF Pro-inspired font hierarchy
+- **Spacing**: Consistent spacing using CSS variables
+- **Components**: Reusable UI components with Mac-like interactions
+
+## Development
+
+This project uses [`bun`](https://bun.sh) as the package manager for faster development and optimized builds.
+
+```bash
+# Install dependencies
+bun install
+
+# Run development server
+bun dev
+
+# Build for production
+bun build
+
+# Start production server
+bun start
+```
+
+## Deploy
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
