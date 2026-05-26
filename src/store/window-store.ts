@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { WindowAnimationSource } from "@/lib/window-transition";
 
 export type WindowAppId =
   | "finder"
@@ -29,6 +30,11 @@ export type OpenWindow = {
   zIndex: number;
   minimized: boolean;
   maximized: boolean;
+  animationSource?: WindowAnimationSource;
+  transitionState?: {
+    phase: "closing" | "minimizing";
+    startedAt: number;
+  };
 };
 
 type OpenWindowOptions = {
@@ -37,6 +43,7 @@ type OpenWindowOptions = {
   position?: Partial<WindowPosition>;
   size?: Partial<WindowSize>;
   reuse?: boolean;
+  animationSource?: WindowAnimationSource;
 };
 
 type WindowStore = {
@@ -56,6 +63,8 @@ type WindowStore = {
   moveWindow: (id: string, position: WindowPosition) => void;
   resizeWindow: (id: string, size: WindowSize, position?: WindowPosition) => void;
 };
+
+const WINDOW_EXIT_ANIMATION_MS = 280;
 
 const defaultWindowConfig: Record<
   WindowAppId,
@@ -103,15 +112,63 @@ const defaultWindowConfig: Record<
   },
 };
 
-const bringToFront = (window: OpenWindow, zIndex: number): OpenWindow => ({
+const bringToFront = (
+  window: OpenWindow,
+  zIndex: number,
+  animationSource?: WindowAnimationSource,
+): OpenWindow => ({
   ...window,
   zIndex,
   minimized: false,
+  animationSource: animationSource ?? window.animationSource,
+  transitionState: undefined,
 });
 
 const getNextFocusedWindowId = (windows: OpenWindow[]) => {
-  const visibleWindows = windows.filter((window) => !window.minimized);
+  const visibleWindows = windows.filter((window) => !window.minimized && !window.transitionState);
   return visibleWindows.sort((a, b) => b.zIndex - a.zIndex)[0]?.id ?? null;
+};
+
+const scheduleWindowRemoval = (
+  get: () => WindowStore,
+  set: (state: Partial<WindowStore>) => void,
+  ids: string[],
+  startedAt: number,
+) => {
+  globalThis.setTimeout(() => {
+    const remainingWindows = get().openWindows.filter(
+      (window) => !ids.includes(window.id) || window.transitionState?.startedAt !== startedAt,
+    );
+
+    set({
+      openWindows: remainingWindows,
+      focusedWindowId: getNextFocusedWindowId(remainingWindows),
+    });
+  }, WINDOW_EXIT_ANIMATION_MS);
+};
+
+const scheduleWindowMinimize = (
+  get: () => WindowStore,
+  set: (state: Partial<WindowStore>) => void,
+  ids: string[],
+  startedAt: number,
+) => {
+  globalThis.setTimeout(() => {
+    const minimizedWindows = get().openWindows.map((window) =>
+      ids.includes(window.id) && window.transitionState?.startedAt === startedAt
+        ? {
+            ...window,
+            minimized: true,
+            transitionState: undefined,
+          }
+        : window,
+    );
+
+    set({
+      openWindows: minimizedWindows,
+      focusedWindowId: getNextFocusedWindowId(minimizedWindows),
+    });
+  }, WINDOW_EXIT_ANIMATION_MS);
 };
 
 export const useWindowStore = create<WindowStore>((set, get) => ({
@@ -128,7 +185,7 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
       const zIndex = nextZIndex + 1;
       set({
         openWindows: openWindows.map((window) =>
-          window.id === existingWindow.id ? bringToFront(window, zIndex) : window,
+          window.id === existingWindow.id ? bringToFront(window, zIndex, options?.animationSource) : window,
         ),
         focusedWindowId: existingWindow.id,
         nextZIndex: zIndex,
@@ -156,6 +213,7 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
       zIndex,
       minimized: false,
       maximized: false,
+      animationSource: options?.animationSource,
     };
 
     set({
@@ -168,12 +226,25 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
   },
 
   closeWindow: (id) => {
-    const remainingWindows = get().openWindows.filter((window) => window.id !== id);
+    const startedAt = Date.now();
+    const closingWindows = get().openWindows.map((window) =>
+      window.id === id && window.transitionState?.phase !== "closing"
+        ? {
+            ...window,
+            transitionState: {
+              phase: "closing" as const,
+              startedAt,
+            },
+          }
+        : window,
+    );
 
     set({
-      openWindows: remainingWindows,
-      focusedWindowId: getNextFocusedWindowId(remainingWindows),
+      openWindows: closingWindows,
+      focusedWindowId: getNextFocusedWindowId(closingWindows),
     });
+
+    scheduleWindowRemoval(get, set, [id], startedAt);
   },
 
   closeFocusedWindow: () => {
@@ -184,12 +255,26 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
   },
 
   closeApp: (app) => {
-    const remainingWindows = get().openWindows.filter((window) => window.app !== app);
+    const startedAt = Date.now();
+    const closingIds = get().openWindows.filter((window) => window.app === app).map((window) => window.id);
+    const closingWindows = get().openWindows.map((window) =>
+      window.app === app
+        ? {
+            ...window,
+            transitionState: {
+              phase: "closing" as const,
+              startedAt,
+            },
+          }
+        : window,
+    );
 
     set({
-      openWindows: remainingWindows,
-      focusedWindowId: getNextFocusedWindowId(remainingWindows),
+      openWindows: closingWindows,
+      focusedWindowId: getNextFocusedWindowId(closingWindows),
     });
+
+    scheduleWindowRemoval(get, set, closingIds, startedAt);
   },
 
   focusWindow: (id) => {
@@ -208,7 +293,7 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
   focusNextWindow: () => {
     const { focusedWindowId, openWindows } = get();
     const visibleWindows = openWindows
-      .filter((window) => !window.minimized)
+      .filter((window) => !window.minimized && !window.transitionState)
       .sort((a, b) => b.zIndex - a.zIndex);
 
     if (visibleWindows.length === 0) {
@@ -221,14 +306,25 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
   },
 
   minimizeWindow: (id) => {
+    const startedAt = Date.now();
     const minimizedWindows = get().openWindows.map((window) =>
-      window.id === id ? { ...window, minimized: true } : window,
+      window.id === id
+        ? {
+            ...window,
+            transitionState: {
+              phase: "minimizing" as const,
+              startedAt,
+            },
+          }
+        : window,
     );
 
     set({
       openWindows: minimizedWindows,
       focusedWindowId: getNextFocusedWindowId(minimizedWindows),
     });
+
+    scheduleWindowMinimize(get, set, [id], startedAt);
   },
 
   minimizeFocusedWindow: () => {
@@ -239,14 +335,26 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
   },
 
   hideApp: (app) => {
+    const startedAt = Date.now();
+    const hiddenIds = get().openWindows.filter((window) => window.app === app).map((window) => window.id);
     const hiddenWindows = get().openWindows.map((window) =>
-      window.app === app ? { ...window, minimized: true } : window,
+      window.app === app
+        ? {
+            ...window,
+            transitionState: {
+              phase: "minimizing" as const,
+              startedAt,
+            },
+          }
+        : window,
     );
 
     set({
       openWindows: hiddenWindows,
       focusedWindowId: getNextFocusedWindowId(hiddenWindows),
     });
+
+    scheduleWindowMinimize(get, set, hiddenIds, startedAt);
   },
 
   maximizeWindow: (id) => {
@@ -261,6 +369,7 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
               maximized: !window.maximized,
               minimized: false,
               zIndex,
+              transitionState: undefined,
             }
           : window,
       ),
