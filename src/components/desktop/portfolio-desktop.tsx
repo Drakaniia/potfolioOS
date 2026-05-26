@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { desktopApps, dockApps, getMacOSApp } from "@/lib/macos-apps";
+import type { WindowAnimationSource } from "@/lib/window-transition";
 import { ControlCenter } from "@/components/control-center/control-center";
 import { DesktopIcon } from "@/components/desktop/desktop-icon";
 import { NotificationBanners } from "@/components/notifications/notification-banners";
@@ -29,8 +30,10 @@ export function PortfolioDesktop() {
   const pushNotification = useNotificationStore((state) => state.pushNotification);
 
   const openApp = useCallback(
-    (app: WindowAppId, source: "desktop" | "dock" | "menu" = "desktop") => {
-      openWindow(app);
+    (app: WindowAppId, source: "desktop" | "dock" | "menu" = "desktop", animationSource?: WindowAnimationSource) => {
+      openWindow(app, {
+        animationSource: source === "dock" ? animationSource : undefined,
+      });
       setSelectedDesktopApp(app);
 
       if (source === "dock") {
@@ -81,6 +84,13 @@ export function PortfolioDesktop() {
     event.preventDefault();
     event.stopPropagation();
     const definition = getMacOSApp(app);
+    const rect = event.currentTarget.getBoundingClientRect();
+    const animationSource = {
+      x: rect.left,
+      y: rect.top,
+      width: rect.width,
+      height: rect.height,
+    };
 
     setContextMenu({
       x: event.clientX,
@@ -88,7 +98,7 @@ export function PortfolioDesktop() {
       items: [
         {
           label: "Open",
-          onSelect: () => openApp(app, "dock"),
+          onSelect: () => openApp(app, "dock", animationSource),
         },
         {
           label: "Options",
@@ -142,12 +152,13 @@ export function PortfolioDesktop() {
             return (
               <DockIcon
                 key={app.id}
+                appId={app.id}
                 name={app.name}
                 src={app.icon}
                 active={active}
                 minimized={minimized}
                 launching={launchingApp === app.id}
-                onOpen={() => openApp(app.id, "dock")}
+                onOpen={(animationSource) => openApp(app.id, "dock", animationSource)}
                 onContextMenu={(event) => openDockContextMenu(event, app.id)}
               />
             );
