@@ -5,6 +5,7 @@ import { useRef } from "react"
 import Image from "next/image"
 
 import { cn } from "@/lib/utils"
+import type { WindowAnimationSource } from "@/lib/window-transition"
 
 interface DockProps {
   className?: string
@@ -15,13 +16,14 @@ interface DockProps {
 
 interface DockIconProps {
   className?: string
+  appId?: string
   src?: string
   href?: string
   name: string
   active?: boolean
   launching?: boolean
   minimized?: boolean
-  onOpen?: () => void
+  onOpen?: (source?: WindowAnimationSource) => void
   onContextMenu?: (event: React.MouseEvent<HTMLLIElement>) => void
   handleIconHover?: (e: React.MouseEvent<HTMLLIElement>) => void
   children?: React.ReactNode
@@ -42,6 +44,7 @@ export const scaleValue = function (
 
 export function DockIcon({
   className,
+  appId,
   src,
   href,
   name,
@@ -55,6 +58,21 @@ export function DockIcon({
   iconSize,
 }: DockIconProps) {
   const ref = useRef<HTMLLIElement | null>(null)
+
+  const getIconSource = (): WindowAnimationSource | undefined => {
+    const rect = ref.current?.getBoundingClientRect()
+
+    if (!rect) {
+      return undefined
+    }
+
+    return {
+      x: rect.left,
+      y: rect.top,
+      width: rect.width,
+      height: rect.height,
+    }
+  }
 
   return (
     <>
@@ -124,12 +142,13 @@ export function DockIcon({
         <button
           type="button"
           className="group/a relative aspect-square w-full rounded-[22.37%] p-0.5 after:absolute after:inset-0 after:rounded-[inherit] after:shadow-md after:shadow-zinc-800/10 focus:outline-none focus:ring-2 focus:ring-[var(--macos-accent)]"
+          data-dock-app={appId}
           data-launching={launching}
           data-minimized={minimized}
           onClick={(event) => {
             if (onOpen) {
               event.preventDefault()
-              onOpen()
+              onOpen(getIconSource())
             } else if (href) {
               window.location.hash = href.replace(/^#/, "")
             }
