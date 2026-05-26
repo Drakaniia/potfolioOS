@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRef } from "react"
+import Image from "next/image"
 
 import { cn } from "@/lib/utils"
 
@@ -15,8 +16,13 @@ interface DockProps {
 interface DockIconProps {
   className?: string
   src?: string
-  href: string
+  href?: string
   name: string
+  active?: boolean
+  launching?: boolean
+  minimized?: boolean
+  onOpen?: () => void
+  onContextMenu?: (event: React.MouseEvent<HTMLLIElement>) => void
   handleIconHover?: (e: React.MouseEvent<HTMLLIElement>) => void
   children?: React.ReactNode
   iconSize?: number
@@ -39,6 +45,11 @@ export function DockIcon({
   src,
   href,
   name,
+  active,
+  launching,
+  minimized,
+  onOpen,
+  onContextMenu,
   handleIconHover,
   children,
   iconSize,
@@ -104,28 +115,50 @@ export function DockIcon({
           } as React.CSSProperties
         }
         onMouseMove={handleIconHover}
+        onContextMenu={onContextMenu}
         className={cn(
           "icon group/li flex h-[var(--icon-size)] w-[var(--icon-size)] items-center justify-center px-[calc(var(--icon-size)*0.075)] hover:-mt-[calc(var(--icon-size)/2)] hover:h-[calc(var(--icon-size)*1.5)] hover:w-[calc(var(--icon-size)*1.5)] [&_img]:object-contain",
           className
         )}
       >
-        <a
-          href={href}
-          className="group/a relative aspect-square w-full rounded-[10px] p-0.5 after:absolute after:inset-0 after:rounded-[inherit] after:shadow-md after:shadow-zinc-800/10"
+        <button
+          type="button"
+          className="group/a relative aspect-square w-full rounded-[22.37%] p-0.5 after:absolute after:inset-0 after:rounded-[inherit] after:shadow-md after:shadow-zinc-800/10 focus:outline-none focus:ring-2 focus:ring-[var(--macos-accent)]"
+          data-launching={launching}
+          data-minimized={minimized}
+          onClick={(event) => {
+            if (onOpen) {
+              event.preventDefault()
+              onOpen()
+            } else if (href) {
+              window.location.hash = href.replace(/^#/, "")
+            }
+          }}
         >
-          <span className="absolute top-[-40px] left-1/2 -translate-x-1/2 rounded-md border border-gray-100 bg-gradient-to-t from-neutral-100 to-white p-1 px-2 text-xs whitespace-nowrap text-black opacity-0 transition-opacity duration-200 group-hover/li:opacity-100 dark:border-zinc-800 dark:from-zinc-900 dark:to-zinc-800 dark:text-white font-sans pointer-events-none">
+          <span className="macos-menu-dropdown pointer-events-none absolute top-[-42px] left-1/2 -translate-x-1/2 px-2 py-1 text-[12px] whitespace-nowrap text-[var(--macos-text)] opacity-0 transition-opacity duration-200 group-hover/li:opacity-100">
             {name}
           </span>
           {src ? (
-            <img
+            <Image
               src={src}
               alt={name}
+              width={iconSize ?? 55}
+              height={iconSize ?? 55}
               className="h-full w-full rounded-[inherit] object-contain"
             />
           ) : (
             children
           )}
-        </a>
+          {active ? (
+            <span
+              className={cn(
+                "absolute -bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-[var(--macos-text)]",
+                minimized && "opacity-40"
+              )}
+              aria-hidden="true"
+            />
+          ) : null}
+        </button>
       </li>
     </>
   )
@@ -167,7 +200,7 @@ export function Dock({
     <nav ref={dockRef} role="navigation" aria-label="Main Dock">
       <ul
         className={cn(
-          "flex items-center rounded-xl border border-gray-100 bg-gradient-to-t from-neutral-50 to-white p-1 dark:border-zinc-900 dark:from-zinc-950 dark:to-zinc-900",
+          "macos-dock flex items-center p-1",
           className
         )}
       >

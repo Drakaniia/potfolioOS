@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function TimeWidget() {
   const [time, setTime] = useState(() => new Date());
@@ -26,19 +26,22 @@ export function TimeWidget() {
   }, []);
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      
-      const deltaX = e.clientX - dragStartRef.current.x;
-      const deltaY = e.clientY - dragStartRef.current.y;
-      
-      // Constrain within viewport
-      const maxX = window.innerWidth - 200;
-      const maxY = window.innerHeight - 140;
-      
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!isDragging) {
+        return;
+      }
+
+      const rect = dragRef.current?.getBoundingClientRect();
+      const width = rect?.width ?? 210;
+      const height = rect?.height ?? 150;
+      const nextX = event.clientX - dragStartRef.current.x;
+      const nextY = event.clientY - dragStartRef.current.y;
+      const maxX = Math.max(0, window.innerWidth - width - 12);
+      const maxY = Math.max(0, window.innerHeight - height - 86);
+
       setPosition({
-        x: Math.max(0, Math.min(deltaX, maxX)),
-        y: Math.max(0, Math.min(deltaY, maxY))
+        x: Math.max(12, Math.min(nextX, maxX)),
+        y: Math.max(40, Math.min(nextY, maxY)),
       });
     };
 
@@ -47,21 +50,21 @@ export function TimeWidget() {
     };
 
     if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
     }
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [isDragging]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = (event: React.MouseEvent) => {
     setIsDragging(true);
     dragStartRef.current = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
+      x: event.clientX - position.x,
+      y: event.clientY - position.y,
     };
   };
 
@@ -70,32 +73,26 @@ export function TimeWidget() {
   }
 
   const dayName = time.toLocaleDateString("en-US", { weekday: "long" });
+  const monthDay = time.toLocaleDateString("en-US", { month: "long", day: "numeric" });
   const hours = time.getHours().toString().padStart(2, "0");
   const minutes = time.getMinutes().toString().padStart(2, "0");
 
   return (
-    <div 
+    <div
       ref={dragRef}
-      className="liquid-glass-strong rounded-2xl absolute select-none overflow-hidden p-6"
-      style={{ 
-        fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif',
+      className="macos-widget macos-window-enter absolute select-none overflow-hidden p-5 text-center text-[var(--macos-text)]"
+      style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        zIndex: 1000,
-        width: '200px',
-        height: '140px'
+        zIndex: 25,
+        width: "min(220px, calc(100vw - 24px))",
       }}
       onMouseDown={handleMouseDown}
     >
-      <div className="text-center">
-        <div className="text-white/70 text-sm font-medium mb-2 tracking-wide">
-          {dayName}
-        </div>
-        <div className="text-white text-4xl font-bold tracking-tight leading-none">
-          <span className="inline-block" style={{ textShadow: "0 0 20px rgba(255,255,255,0.3), 0 0 40px rgba(255,255,255,0.1)" }}>
-            {hours}:{minutes}
-          </span>
-        </div>
+      <div className="text-[13px] font-medium text-[var(--macos-text-secondary)]">{dayName}</div>
+      <div className="mt-1 text-[12px] text-[var(--macos-text-secondary)]">{monthDay}</div>
+      <div className="mt-3 font-mono text-[42px] font-semibold leading-none tabular-nums">
+        {hours}:{minutes}
       </div>
     </div>
   );
